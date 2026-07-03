@@ -14,11 +14,12 @@ def test_packaged_defaults_validate():
     assert "tier1" in settings.doctrine.keyword_map
     assert "los_angeles_city" in settings.jurisdictions
     assert settings.jurisdictions["los_angeles_city"].default_crs == "EPSG:2229"
-    # baselines carry the accuracy doctrine amendments
+    # baselines carry the accuracy doctrine amendments: both tier-1 national
+    # sources MUST filter unreliable features (per the reliability spike)
     ngs = next(l for l in settings.baselines.overrides if "NGS" in l.name)
-    assert ngs.reliability_filter is not None
+    assert ngs.reliability_filter and "ADJUSTED" in ngs.reliability_filter
     plss = next(l for l in settings.baselines.overrides if "PLSS" in l.name)
-    assert plss.positional_accuracy_m == 30.0
+    assert plss.reliability_filter and "RELYNUMB" in plss.reliability_filter
 
 
 def test_user_yaml_deep_merges(tmp_path):

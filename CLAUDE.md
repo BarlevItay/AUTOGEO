@@ -16,9 +16,10 @@ Scoping: **City of Los Angeles first** (corpus in `LA/`, gitignored), then other
 - User-visible success: georeferenced GeoTIFF + GPKG land on the correct LA streets in QGIS; report.pdf shows per-GCP residuals, RMSE (m + ftUS), and an honest gate verdict.
 
 ### Reality-check definition (must-fill — the core)
-- Ground truth: hand-labeled golden set in `data/labeled/` (QGIS-georeferenced LA sheets, ≥6 well-spread GCPs each, ≥6 distinct projects); synthetic plans with known injected transforms for solver-only checks.
-- The check: `autogeo calibrate data/labeled/` — pipeline placement vs hand label within the era/error-budget RMSE band; control-poor docs are REFUSED (routed to assisted, no output); wrong-datum construction is caught by the gate.
-- NOT done here: "pipeline ran without exception", "GeoTIFF was written", "RMSE printed" — RMSE passing on internally-consistent-but-shifted output is the canonical false green.
+- **HARD CONSTRAINT: no hand-labeled ground truth exists or ever will** (user, 2026-07-03 — the stated challenge). Validation is label-free.
+- Ground truth: synthetic plans in `data/synth/` rendered from real curated-registry GIS features under KNOWN transforms, both artifact-class styles (clean vector / degraded bilevel scan) — full-pipeline blind recovery is T1.
+- The check: `autogeo validate` — (a) synthetic suite recovered blind within era band; (b) real docs: cross-tier agreement (Tier-1-only vs Tier-2-only solves), cross-source holdout (city vs county/national provenance), mosaic misclosure on the 24-sheet contiguous run; control-poor docs REFUSED; wrong-datum construction caught by the gate.
+- NOT done here: "pipeline ran", "GeoTIFF written", "RMSE printed", or **any single self-consistency metric alone** — internal RMSE passing on coherently-shifted output is the canonical false green; LLM-vision overlay judgment is triage, never proof.
 
 ### Known gotchas (maintained — max ~10 active, one line each; overflow evicts to the memory backend)
 - pyproj NAD27→NAD83 silently falls back to multi-meter Helmert without NADCON grids — always `only_best=True` + startup grid assert.

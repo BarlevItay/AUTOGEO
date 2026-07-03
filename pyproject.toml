@@ -57,4 +57,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = '-q -m "not live"'
+markers = [
+    'live: hits real network endpoints; deselected by default, run with -m live',
+]

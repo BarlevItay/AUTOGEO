@@ -175,25 +175,25 @@ baselines:
     # Nationwide fallbacks, verified live 2026-07-03. Queried only when the
     # jurisdiction lacks a tier or its envelope pre-count is too thin.
     - service_url: "https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer"
-      layer_id: 1              # corner points sublayer id — confirm in spike 5
+      layer_id: 1              # corner points sublayer
       name: BLM PLSS CadNSDI corner points
       geometry_type: point
       doctrine_tier: 1
       jurisdiction_level: national
       label_fields: [POINTLAB]
-      positional_accuracy_m: 30.0   # pessimistic default until reliability filtering
-      reliability_filter: null      # set from spike 5 reliability histogram
-      notes: "GCDB-derived; MUST filter on per-point reliability before trust"
+      positional_accuracy_m: 3.0    # post-filter; RELYNUMB is in FEET
+      reliability_filter: "RELYNUMB <= 10"
+      notes: "GCDB-derived. Spike 2026-07-03 (CA FeatureServer corners, rural Kern sample n=200): RELYNUMB 60% at 2ft, tail to 71ft — unfiltered would poison solves. CA state service: gis.blm.gov/caarcgis/.../BLM_CA_CADNSDI/FeatureServer/0"
     - service_url: "https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/NGS_Datasheets_Feature_Service/FeatureServer"
-      layer_id: 0
+      layer_id: 1              # ALL_DATASHEETS (id 0 does not exist — verified)
       name: NOAA NGS survey control marks
       geometry_type: point
       doctrine_tier: 1
       jurisdiction_level: national
       label_fields: [PID, DESIGNATION]
       positional_accuracy_m: 0.05
-      reliability_filter: "POS_SRCE = 'ADJUSTED'"   # exact field confirmed in spike 5
-      notes: "SCALED horizontal positions are +/-150 m — never use unfiltered"
+      reliability_filter: "POS_SRCE = 'ADJUSTED' AND LAST_COND <> 'MARK NOT FOUND'"
+      notes: "Spike 2026-07-03 (urban LA, n=200): 90.5% SCALED (+/-150 m), only 1.5% ADJUSTED — unfiltered NGS is poison; fields POS_SRCE/POS_ORDER/LAST_COND verified"
     - service_url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer"
       layer_id: 2
       name: Census TIGERweb roads
