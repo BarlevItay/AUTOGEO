@@ -1,0 +1,1 @@
+"""autogeo.output subpackage."""

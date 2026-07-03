@@ -1,0 +1,1 @@
+"""autogeo.batch subpackage."""

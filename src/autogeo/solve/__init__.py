@@ -1,0 +1,1 @@
+"""autogeo.solve subpackage."""
