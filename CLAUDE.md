@@ -31,6 +31,7 @@ Scoping: **City of Los Angeles first** (corpus in `LA/`, gitignored), then other
 - QGIS `.points` sourceY is negative (row) — handle sign explicitly in gcpfile round-trip.
 - LA County on-prem GIS hosts (*.lacounty.gov) are Incapsula bot-walled — use their AGOL org `services.arcgis.com/RmCCgQtiZLDCtblq` instead.
 - PROJ picks regional grids by CRS pair alone (NAD27→NAD83 pulls the *Canada* NTv2 grid) — always pass a CONUS/LA area_of_interest.
+- LLM provider = Claude (anthropic SDK); key in `.env` as `sk-ant-` (108 chars), loaded via load_api_key(). Vision model is the PRIMARY OCR for title blocks AND map labels (user chose no Tesseract); tesseract.py is optional fallback only.
 
 ### Memory backend (must-fill — where capture/recall go)
 - Backend: LOCAL files at `C:\Users\ItayBar-Lev\.claude\projects\D--Repo-AUTOGEO\memory\` + `MEMORY.md` index (no anchor-mem MCP connected — do not call anchor-mem tools).
