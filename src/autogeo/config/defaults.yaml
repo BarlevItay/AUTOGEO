@@ -1,0 +1,266 @@
+# Packaged defaults — every key can be overridden by the user YAML passed via
+# --config, which is deep-merged on top of this file.
+
+project:
+  name: autogeo
+  target_crs: "EPSG:2229"   # CA State Plane Zone 5 (ftUS) — LA default
+  output_dir: runs
+
+gate:
+  rmse_thresholds:
+    - {era_band: modern_vector, max_m: 0.5}
+    - {era_band: modern_scan, max_m: 1.0}
+    - {era_band: pre1980_scan, max_m: 1.5}
+  min_gcps: 5
+  min_hull_area_ratio: 0.15
+  min_collinearity_ratio: 0.10
+  loo_factor: 1.5
+  holdout_factor: 2.0
+  mode: conservative
+  error_budget_factor: 1.0
+
+doctrine:
+  # regexes matched (case-insensitive) against layer name + description + service name
+  keyword_map:
+    tier1:
+      - 'plss'
+      - 'section.?corner'
+      - 'quarter.?corner'
+      - 'survey.?monument'
+      - 'bench.?mark'
+      - 'geodetic'
+      - 'control.?(point|station)'
+      - 'cadnsdi'
+    tier2:
+      - 'center.?line'
+      - 'street'
+      - 'road(way)?s?\b'
+      - 'rail'
+      - 'right.?of.?way'
+      - '\brow\b'
+      - 'highway'
+    tier3:
+      - 'hydro'
+      - 'river'
+      - 'stream'
+      - 'creek'
+      - 'bridge'
+      - 'dam\b'
+      - 'culvert'
+    tier4:
+      - 'parcel'
+      - 'lot.?line'
+      - '\bapn\b'
+      - 'assessor'
+      - 'cadastr'
+      - 'subdivision'
+      - 'plat\b'
+    tier5:
+      - 'building'
+      - 'footprint'
+  # field-name regexes that mark a layer as label-matchable for Tier 1 matching
+  label_field_map:
+    tier1: ['\bMON', '\bBM\b', 'STATION', 'CORNER', '\bPID\b', 'DESIG']
+    tier2: ['FULL.?NAME', 'ST_?NAME', 'STREET', 'ROAD_?NAME', '\bRTE\b', 'NAME\b']
+    tier4: ['\bAPN\b', 'PARCEL_?ID', 'AIN\b']
+  min_score: 2.0
+  min_features_per_tier: 10
+  tier_order_pre1980: [1, 2, 3, 4, 5]
+  tier_order_modern: [2, 1, 3, 4, 5]
+  state_tier_availability:
+    NY: [2, 3, 4, 5]   # non-PLSS state: tier 1 = NGS marks only (baseline source)
+
+jurisdictions:
+  los_angeles_city:
+    display_name: City of Los Angeles
+    state: CA
+    default_crs: "EPSG:2229"
+    envelope_wgs84: [-118.6682, 33.7037, -118.1553, 34.3373]
+    rest_roots:
+      # verified 2026-07-03: no auth, maxRecordCount=1000, pagination supported,
+      # published 3857 but honor outSR=2229. Legacy boemaps.eng.ci.la.ca.us is dead.
+      - "https://maps.lacity.org/lahub/rest/services"    # GeoHub source site
+      - "https://maps.lacity.org/arcgis/rest/services"   # NavigateLA backend
+    layers:
+      # ---- tier 1: survey control (city coverage unusually strong) ----
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Survey_Information/MapServer"
+        layer_id: 0
+        name: BOE Survey Control Points
+        geometry_type: point
+        doctrine_tier: 1
+        jurisdiction_level: city
+        label_fields: [MapLabel]
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 0.5   # pessimistic; X_NAD83/Y_NAD83 attrs are SP Zone V ftUS
+        reliability_filter: null     # TODO spike: exclude graphically_placed points
+        notes: "109,604 pts; carries X_NAD83/Y_NAD83 attribute coords + graphically_placed flag + field-book NLA_URL"
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Survey_Information/MapServer"
+        layer_id: 6
+        name: BOE Survey Benchmarks
+        geometry_type: point
+        doctrine_tier: 1
+        jurisdiction_level: city
+        label_fields: [TOOLTIP]      # designation parseable from "Bench Mark: {PK}"
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 2.0   # vertical control; horizontal placement unverified
+        notes: "7,679 marks; elevations/order live in navigatela.lacity.org CFM reports, not REST attrs"
+      # ---- tier 2: centerlines + named intersections ----
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Street_Information/MapServer"
+        layer_id: 36
+        name: BOE Streets Centerline
+        geometry_type: polyline
+        doctrine_tier: 2
+        jurisdiction_level: city
+        label_fields: [STNAME, STSFX, TDIR, SFXDIR, STNAME_A]
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 1.0
+        notes: "85,186 segs; BOE-authoritative ROW representation; actively maintained (edits 2026-06)"
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Street_Information/MapServer"
+        layer_id: 9
+        name: BOE Street Intersections
+        geometry_type: point
+        doctrine_tier: 2
+        jurisdiction_level: city
+        label_fields: [FROM_ST, TO_ST]
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 1.0
+        notes: "61,623 named intersection nodes with dual coords — direct street-pair GCP source"
+      - service_url: "https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/eGIS_Addressing_ROAD_LINES/FeatureServer"
+        layer_id: 0
+        name: LA County CAMS Address Street Lines
+        geometry_type: polyline
+        doctrine_tier: 2
+        jurisdiction_level: county
+        label_fields: [FullName, StName]
+        layer_crs: "EPSG:2229"       # native SP Zone V ftUS
+        positional_accuracy_m: 2.0
+        notes: "385,505 segs; per-segment Accuracy + UpdateDate fields; county on-prem hosts are Incapsula-walled — AGOL org only"
+      # ---- tier 3 ----
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Street_Information/MapServer"
+        layer_id: 0
+        name: BOE Bridges and Structures
+        geometry_type: point
+        doctrine_tier: 3
+        jurisdiction_level: city
+        label_fields: [BridgeID]
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 3.0
+        notes: "1,907 structure points (not footprints); city hydro is attribute-free — NHD is the tier-3 fallback"
+      # ---- tier 4 ----
+      - service_url: "https://maps.lacity.org/lahub/rest/services/Landbase_Information/MapServer"
+        layer_id: 5
+        name: BOE Landbase Parcels
+        geometry_type: polygon
+        doctrine_tier: 4
+        jurisdiction_level: city
+        label_fields: [PIN, TRACT, BLOCK, LOT]
+        layer_crs: "EPSG:3857"
+        positional_accuracy_m: 1.0
+        notes: "883,630 parcels; BOE cadastral landbase (survey-derived, not assessor sketch)"
+      # ---- tier 5 ----
+      - service_url: "https://services5.arcgis.com/7nsPwEMP38bSkCjy/arcgis/rest/services/Building_Footprints/FeatureServer"
+        layer_id: 0
+        name: LA Building Footprints (LARIAC)
+        geometry_type: polygon
+        doctrine_tier: 5
+        jurisdiction_level: city
+        label_fields: [BLD_ID, AIN]
+        layer_crs: "EPSG:2229"       # native
+        positional_accuracy_m: 1.0
+        notes: "1,122,422 footprints, LARIAC5 ~2020 flight; last-resort sanity control"
+
+baselines:
+  enabled: true
+  overrides:
+    # Nationwide fallbacks, verified live 2026-07-03. Queried only when the
+    # jurisdiction lacks a tier or its envelope pre-count is too thin.
+    - service_url: "https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer"
+      layer_id: 1              # corner points sublayer id — confirm in spike 5
+      name: BLM PLSS CadNSDI corner points
+      geometry_type: point
+      doctrine_tier: 1
+      jurisdiction_level: national
+      label_fields: [POINTLAB]
+      positional_accuracy_m: 30.0   # pessimistic default until reliability filtering
+      reliability_filter: null      # set from spike 5 reliability histogram
+      notes: "GCDB-derived; MUST filter on per-point reliability before trust"
+    - service_url: "https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/NGS_Datasheets_Feature_Service/FeatureServer"
+      layer_id: 0
+      name: NOAA NGS survey control marks
+      geometry_type: point
+      doctrine_tier: 1
+      jurisdiction_level: national
+      label_fields: [PID, DESIGNATION]
+      positional_accuracy_m: 0.05
+      reliability_filter: "POS_SRCE = 'ADJUSTED'"   # exact field confirmed in spike 5
+      notes: "SCALED horizontal positions are +/-150 m — never use unfiltered"
+    - service_url: "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer"
+      layer_id: 2
+      name: Census TIGERweb roads
+      geometry_type: polyline
+      doctrine_tier: 2
+      jurisdiction_level: national
+      label_fields: [BASENAME, NAME]
+      positional_accuracy_m: 7.6    # TIGER published ~25 ft
+      notes: "coarse — last-resort tier 2"
+    - service_url: "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer"
+      layer_id: 6
+      name: USGS NHD flowlines
+      geometry_type: polyline
+      doctrine_tier: 3
+      jurisdiction_level: national
+      label_fields: [gnis_name]
+      positional_accuracy_m: 12.0
+
+arcgis:
+  timeout_s: 30.0
+  retries: 3
+  politeness_delay_s: 0.2
+  max_features_per_query: 5000
+  max_services: 500
+
+cache:
+  dir: data/cache
+  catalog_ttl_days: 7
+  feature_ttl_days: 30
+
+ingest:
+  dpi: 300
+  deskew: true
+
+ocr:
+  tesseract_cmd: null
+  lang: eng
+  min_conf: 40.0
+
+llm:
+  enabled: true
+  model: claude-sonnet-5
+  max_image_px: 2048
+  titleblock: {enabled: true}
+  tier3: {enabled: true, max_calls_per_doc: 2}
+
+solver:
+  ransac_threshold_factor: 2.0
+  ransac_max_trials: 2000
+  tps_min_gcps: 8
+  allow_poly2: true
+  holdout_n: 2
+
+tiers:
+  tier2_trigger_min_t1_gcps: 6
+  tier3_trigger_min_gcps: 5
+
+output:
+  formats: [geotiff, gpkg, geojson, dxf]
+  report_pdf: true
+  overviews: true
+
+batch:
+  workers: 4
+  continue_on_error: true
+
+logging:
+  level: INFO
+  format: console
+  per_doc_file: true
